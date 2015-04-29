@@ -273,7 +273,7 @@ def LoadMyEntry(EntryText):
             chat_Chatlog.config(state=DISABLED)
             chat_Chatlog.yview(END)
 
-
+# Load an entry into the chat from someone other than yourself
 def LoadOtherEntry(otherID, EntryText):
     """ 
     Manage the received information from others and put them on Chatlog
@@ -293,6 +293,7 @@ def LoadOtherEntry(otherID, EntryText):
             chat_Chatlog.yview(END)
 
 
+# UpdateFriendsList now takes a neighbour object
 def UpdateFriendsList(neighbour):
     """ 
     Updates the friends list
@@ -394,19 +395,6 @@ class Receiving(threading.Thread):
                 #Loads message into the chat.
                 LoadOtherEntry(fromName, msg)
 
-
-    # def return_username(addr):
-    #      HOST = msg[2]
-    #      PORT = addr[1]
-    #      reply = "&%ReturnName",myID
-    #      s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    #      s.sendto(name,(HOST,PORT)) 
-
-
-
-
-
-
     def stop(self):
         self.flag = False
         self._Thread__stop()
@@ -424,7 +412,7 @@ class Neighbour(object):
         self.name = "Unknown"
 
     def setName(self, name):
-        self.name = namekk
+        self.name = name
 
 
 def connect_server(myID, myPort, SERVER_ADD, SERVER_PORT,  Type, Info=''):
@@ -461,10 +449,6 @@ def connect_server(myID, myPort, SERVER_ADD, SERVER_PORT,  Type, Info=''):
                     AddUserToList(myID, int(myPort), IP_addr[1], int(IP_addr[2]))
 
                     count += 1
-                    # print neighbor_list
-                    # #My code below
-                    
-                    #     #GetUserName(x,y)g
     s.close()
 
 def client_offline():
@@ -510,7 +494,6 @@ def UpdateNeighborName(name, port):
     port = int(port)
     print "Updating name for [" + str(port) + "]" + name
 
-    # Cool pythonic way of doing loops, yo, see python docs
     [n.setName(name) for n in neighbor_list if n.port == port]
 
     # This is the for equivalent of the above
@@ -523,7 +506,7 @@ def UpdateNeighborName(name, port):
 
 
     DeleteFriendsList()
-    # Another pythonic way of doing cool loops
+
     [UpdateFriendsList(n) for n in neighbor_list]
 
     # This for loop is the same as the above loop
