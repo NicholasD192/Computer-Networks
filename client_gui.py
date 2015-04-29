@@ -2,12 +2,22 @@
 from Tkinter import *
 from socket import *
 import time, threading, Queue
+# Might need the antigravity module incase of space travel
+# import antigravity
 
 Info1 = 'Input the user name and port you want to use in chat room.'
 Info2 = 'Name length should at least one letter and no more than 16 letters.'
 Info3 = 'Port number should be integar and over 2000'
 Info3_1 = 'Port number should be integar'
 Info4 = 'Not valid IPv4 address format. Example 192.168.2.1'
+
+
+UNKNOWN_NAME = "Unknown"
+
+SPECIAL_MESSAGE = {
+    "GET_NAME_MSG": "X_GET_NAME",   # format X_GET_NAME|Port
+    "GET_NAME_RESP": "X_NAME"       # format X_NAME|Nickname|Port
+}
 
 
 def pkg(Type, IPaddr, port, ID=""):
@@ -134,6 +144,7 @@ class Chat_GUI_Win(Tk):
     def __init__(self,newtitle):
         global chat_Chatlog
         global chat_EntryBox
+        global chat_FriList
         Tk.__init__(self)
         self.title(newtitle)
         self.protocol("WM_DELETE_WINDOW", self.cls_chat_win)
@@ -172,7 +183,7 @@ class Chat_GUI_Win(Tk):
         """
         self.destroy()
         cls_connect()
-        
+
 #---------------------------------------------------#
 #----------------- KEYBOARD EVENTS -----------------#
 #---------------------------------------------------#
@@ -189,6 +200,8 @@ def DisableEntry(event):
 #---------------------------------------------------#
 def ClickAction():
     global chat_EntryBox
+    global chat_FriList
+
     #Write message to chat window
     EntryText = FilteredMessage(chat_EntryBox.get("0.0",END))
     LoadMyEntry(EntryText)
@@ -200,10 +213,20 @@ def ClickAction():
     chat_EntryBox.delete("0.0",END)
             
     #Send my mesage to all others
+
+    import socket
+
+    data = FilteredMessage(chat_EntryBox.get("0.0",END))
+    SendMessage(EntryText, neighbor_list[chat_FriList.curselection()[0]])
     """
     student need to create the function for sending the message themselves
     here
     """
+
+# Wrap all message sending with a function to prepend source port
+def SendMessage(message, neighbor):
+    s = socket(AF_INET,SOCK_DGRAM)
+    s.sendto(myPort + "!" + message,(neighbor.host, neighbor.port))
 
 #---------------------------------------------------#
 #------------------ Load Entris  -------------------#
@@ -263,11 +286,32 @@ def LoadOtherEntry(otherID, EntryText):
                 LineNumber = float(chat_Chatlog.index('end'))-1.0
             except:
                 pass
-            chat_Chatlog.insert(END, "Other: " + EntryText)
-            chat_Chatlog.tag_add("Other", LineNumber, LineNumber+0.6)
-            chat_Chatlog.tag_config("Other", foreground="#04B404", font=("Arial", 12, "bold"))
+            chat_Chatlog.insert(END, otherID + ": " + EntryText)
+            chat_Chatlog.tag_add(otherID, LineNumber, LineNumber+0.6)
+            chat_Chatlog.tag_config(otherID, foreground="#04B404", font=("Arial", 12, "bold"))
             chat_Chatlog.config(state=DISABLED)
             chat_Chatlog.yview(END)
+
+
+def UpdateFriendsList(neighbour):
+    """ 
+    Updates the friends list
+    """
+    global chat_FriList
+
+    # Insert the name into the sidebar list instead
+    # of the port like we originally did
+    chat_FriList.insert(END, neighbour.name)
+
+
+def DeleteFriendsList():
+    """ 
+    Clears the friends List
+    """
+    global chat_FriList
+    chat_FriList.delete(0, END)
+
+
             
 #---------------------------------------------------#
 #------------------ Connections  -------------------#
@@ -307,10 +351,82 @@ class Receiving(threading.Thread):
         while self.flag:
             msg, addr = self.sock.recvfrom(1024) 
 
+            # Special messages begin with X_ so we don't want to print these
+            # to the message log
+            if 'X_' in msg:
+                # All messages are prepended PORT! so we strip it out
+                msg = msg[msg.find('!') + 1:]
+                # Special messages are delimited with | so we can 
+                # split by the character
+                msg_unpacked = msg.split('|')
+                
+                # Check the type of special message,
+                # if it's a request for the name of this client
+                if msg_unpacked[0] == SPECIAL_MESSAGE["GET_NAME_MSG"]:
+                    # extract the destination port from the message
+                    dest_port = int(msg_unpacked[1])
+                    # We need to respond to the GET_NAME request
+                    SendMessage("{}|{}|{}".format(
+                            SPECIAL_MESSAGE["GET_NAME_RESP"],
+                            myID, 
+                            myPort
+                        ), 
+                        # Need to create a temporary neighbour object
+                        # to pass through to SendMessage
+                        Neighbour(addr[0], dest_port)
+                    )
+                    continue
+                # If we got a response to the name request then we need to
+                # update our list of neighbours with the name based on the port
+                elif msg_unpacked[0] == SPECIAL_MESSAGE["GET_NAME_RESP"]:
+                    # Pass the new name and the port of the neighbour
+                    UpdateNeighborName(msg_unpacked[1], msg_unpacked[2])
+                    continue
+            else:
+                fromName = UNKNOWN_NAME
+                hasPort = False
+                if '!' in msg:
+                    hasPort = True
+                    dest_port = int(msg[0:msg.find('!')])
+                    msg = msg[msg.find('!') + 1:]
+                    fromName = GetUserNameFromPort(addr[0], dest_port)
+                
+                #Loads message into the chat.
+                LoadOtherEntry(fromName, msg)
+
+
+    # def return_username(addr):
+    #      HOST = msg[2]
+    #      PORT = addr[1]
+    #      reply = "&%ReturnName",myID
+    #      s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    #      s.sendto(name,(HOST,PORT)) 
+
+
+
+
+
+
     def stop(self):
         self.flag = False
         self._Thread__stop()
-            
+
+# Makes sense to make a real class for neighbours instead
+# of passing a tuple around and having to remember the indices
+class Neighbour(object):
+    """
+        Holds information about other neighbours connected to the 
+        same server and their names       
+    """
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.name = "Unknown"
+
+    def setName(self, name):
+        self.name = namekk
+
+
 def connect_server(myID, myPort, SERVER_ADD, SERVER_PORT,  Type, Info=''):
     """ 
     connect the server. If Type is Requesting('R'), then receive the 
@@ -322,6 +438,8 @@ def connect_server(myID, myPort, SERVER_ADD, SERVER_PORT,  Type, Info=''):
     LoadconnectInfo(Info)
     s.send(pkg(Type, myIP, myPort, myID))
     if Type == 'R':
+        data = None
+        IP_addr = None
         data = s.recv(1024)
         server_recv=data
 
@@ -339,9 +457,14 @@ def connect_server(myID, myPort, SERVER_ADD, SERVER_PORT,  Type, Info=''):
                 count = 0
                 while (count < int(neighbor[0])):
                     IP_addr = neighbor[count+1].split(':')
-                    if (myIP, int(myPort)) != (IP_addr[1],int(IP_addr[2])):
-                        neighbor_list.append((IP_addr[1],int(IP_addr[2])))
+                    
+                    AddUserToList(myID, int(myPort), IP_addr[1], int(IP_addr[2]))
+
                     count += 1
+                    # print neighbor_list
+                    # #My code below
+                    
+                    #     #GetUserName(x,y)g
     s.close()
 
 def client_offline():
@@ -362,11 +485,60 @@ def cls_connect():
     client_offline()
     re.stop()
     sock.close()
+def AddUserToList(myID, myPort, newip, newport):
+    """
+    Adds a new user to the list if it doesn't already exsist
+    """
+    
+    if (myID, myPort) == (newip, newport):
+        return
+
+    found = False
+    for neighbour in neighbor_list:
+        if neighbour.host == newip and neighbour.port == newport:
+            found = True
+
+    if not found:
+        new_neighbor = Neighbour(newip, newport)
+        neighbor_list.append(new_neighbor)
+        GetUserNameFromClient(new_neighbor)
+
+def GetUserNameFromClient(neighbor):
+    SendMessage("X_GET_NAME|" + myPort, neighbor)
+
+def UpdateNeighborName(name, port):
+    port = int(port)
+    print "Updating name for [" + str(port) + "]" + name
+
+    # Cool pythonic way of doing loops, yo, see python docs
+    [n.setName(name) for n in neighbor_list if n.port == port]
+
+    # This is the for equivalent of the above
+    # for neighbor in neighbor_list:
+    #     if neighbor.port == port:
+    #         print "Found, updating!!"
+    #         neighbor.setName(name)
+    #         break
 
 
-    #close socket and close the window
-##    Close_connect()
-##    host_socket.close()
+
+    DeleteFriendsList()
+    # Another pythonic way of doing cool loops
+    [UpdateFriendsList(n) for n in neighbor_list]
+
+    # This for loop is the same as the above loop
+    # for neighbour in neighbor_list:
+    #     UpdateFriendsList(neighbour)
+
+# We only get the port of the user when we get a message
+# so we need to find the neighbour that belongs to the port
+# so we can get the name of the user. It will default to "Unknown"
+def GetUserNameFromPort(ip, port):
+    for neighbor in neighbor_list:
+        if neighbor.host == ip and neighbor.port == port:
+            return neighbor.name
+
+    return UNKNOWN_NAME
 
 myID=''
 myIP = gethostbyname(gethostname())
