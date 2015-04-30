@@ -1,13 +1,14 @@
 ##import cn_Fn
 from Tkinter import *
 from socket import *
-import time, threading, Queue
+
+import time, threading, Queue, random
 # Might need the antigravity module incase of space travel
 # import antigravity
 
 Info1 = 'Input the user name and port you want to use in chat room.'
 Info2 = 'Name length should at least one letter and no more than 16 letters.'
-Info3 = 'Port number should be integar and over 2000'
+Info3 = 'Randomised UDP Port Number between 2000-10000'
 Info3_1 = 'Port number should be integar'
 Info4 = 'Not valid IPv4 address format. Example 192.168.2.1'
 
@@ -68,6 +69,8 @@ class Quest_GUI_Win(Tk):
         self.user_ent = Entry(questWindow)
         port_lbl = Label(questWindow, text='UDP port')
         self.port_ent = Entry(questWindow)
+        #Defult UDP Value is randomised, User doesn't have to choose.
+        self.port_ent.insert(0,random.randint(2000,10000))
         server_add_lbl = Label(questWindow, text='server IP address')
         self.server_add_ent = Entry(questWindow)
         confirm_bttn = Button(questWindow, text='Confirm', command=self.reveal)
@@ -128,7 +131,7 @@ class Quest_GUI_Win(Tk):
 ##                    waitconnect.start()
             except ValueError:
                 showerror("Port Number Error", Info3)
-                
+     
 
 #---------------------------------------------------#
 #------------------ Chat Window  -------------------#
