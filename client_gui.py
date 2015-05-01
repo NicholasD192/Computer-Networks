@@ -8,7 +8,7 @@ import time, threading, Queue, random
 
 Info1 = 'Input the user name and port you want to use in chat room.'
 Info2 = 'Name length should at least one letter and no more than 16 letters.'
-Info3 = 'Randomised UDP Port Number between 2000-10000'
+Info3 = 'Randomised UDP Port Number between 2000-5000'
 Info3_1 = 'Port number should be integar'
 Info4 = 'Not valid IPv4 address format. Example 192.168.2.1'
 
@@ -70,7 +70,7 @@ class Quest_GUI_Win(Tk):
         port_lbl = Label(questWindow, text='UDP port')
         self.port_ent = Entry(questWindow)
         #Defult UDP Value is randomised, User doesn't have to choose.
-        self.port_ent.insert(0,random.randint(2000,10000))
+        self.port_ent.insert(0,random.randint(2000,5000))
         server_add_lbl = Label(questWindow, text='server IP address')
         self.server_add_ent = Entry(questWindow)
         confirm_bttn = Button(questWindow, text='Confirm', command=self.reveal)
@@ -168,7 +168,7 @@ class Chat_GUI_Win(Tk):
                         
         # Create Online Friend List
         chat_FriLIst_lbl = Label(self, font=22, text='Friend List')
-        chat_FriList = Listbox(self)
+        chat_FriList = Listbox(self,selectmode=MULTIPLE)
 
         # Create the Button to send message
         chat_Sendbttn = Button(self, font=30, text="Send", width="12", height="5", command=ClickAction)
@@ -220,7 +220,16 @@ def ClickAction():
     import socket
 
     data = FilteredMessage(chat_EntryBox.get("0.0",END))
-    SendMessage(EntryText, neighbor_list[chat_FriList.curselection()[0]])
+
+    #Gets the number of people selected in the friends list
+    num = len(chat_FriList.curselection())
+    count = range(0,num)
+
+    #Sends the message to each person selected
+    for i in count:
+        SendMessage(EntryText, neighbor_list[chat_FriList.curselection()[i]])
+
+    print chat_FriList.curselection()
     """
     student need to create the function for sending the message themselves
     here
@@ -305,7 +314,12 @@ def UpdateFriendsList(neighbour):
 
     # Insert the name into the sidebar list instead
     # of the port like we originally did
-    chat_FriList.insert(END, neighbour.name)
+    #Will Label the client's own ID with (You)
+    if neighbour.name == myID:
+        chat_FriList.insert(END, neighbour.name + " (You)")
+
+    else:
+        chat_FriList.insert(END, neighbour.name)
 
 
 def DeleteFriendsList():
@@ -499,22 +513,9 @@ def UpdateNeighborName(name, port):
 
     [n.setName(name) for n in neighbor_list if n.port == port]
 
-    # This is the for equivalent of the above
-    # for neighbor in neighbor_list:
-    #     if neighbor.port == port:
-    #         print "Found, updating!!"
-    #         neighbor.setName(name)
-    #         break
-
-
-
     DeleteFriendsList()
 
     [UpdateFriendsList(n) for n in neighbor_list]
-
-    # This for loop is the same as the above loop
-    # for neighbour in neighbor_list:
-    #     UpdateFriendsList(neighbour)
 
 # We only get the port of the user when we get a message
 # so we need to find the neighbour that belongs to the port
